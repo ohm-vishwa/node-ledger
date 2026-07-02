@@ -7,6 +7,7 @@ const emailService = require("../services/email.service");
 
 async function createTransaction(req, res) {
   const { fromAccount, toAccount, amount, idempotencyKey } = req.body;
+  const parsedAmount = typeof amount === "string" ? Number(amount) : amount;
 
   if (!fromAccount || !toAccount || !amount || !idempotencyKey) {
     return res.status(400).json({
@@ -19,7 +20,11 @@ async function createTransaction(req, res) {
       .status(400)
       .json({ message: "fromAccount and toAccount cannot be the same" });
   }
-  if (typeof amount !== "number" || amount <= 0) {
+  if (
+    typeof parsedAmount !== "number" ||
+    Number.isNaN(parsedAmount) ||
+    parsedAmount <= 0
+  ) {
     return res
       .status(400)
       .json({ message: "amount must be a positive number" });
@@ -83,9 +88,9 @@ async function createTransaction(req, res) {
 
   const balance = await fromUserAccount.getBalance();
 
-  if (balance < amount) {
+  if (balance < parsedAmount) {
     return res.status(400).json({
-      message: `Insufficient balance. Current balance is ${balance}. Request amount is ${amount}`,
+      message: `Insufficient balance. Current balance is ${balance}. Request amount is ${parsedAmount}`,
     });
   }
 
@@ -99,7 +104,7 @@ async function createTransaction(req, res) {
     {
       fromAccount,
       toAccount,
-      amount,
+      amount: parsedAmount,
       idempotencyKey,
       status: "PENDING",
     },
@@ -109,7 +114,7 @@ async function createTransaction(req, res) {
   const debitLedgerEntry = await ledgerModel.create(
     {
       account: fromAccount,
-      amount: amount,
+      amount: parsedAmount,
       transaction: transaction._id,
       type: "DEBIT",
     },
@@ -119,7 +124,7 @@ async function createTransaction(req, res) {
   const creditLedgerEntry = await ledgerModel.create(
     {
       account: toAccount,
-      amount: amount,
+      amount: parsedAmount,
       transaction: transaction._id,
       type: "CREDIT",
     },
@@ -139,7 +144,7 @@ async function createTransaction(req, res) {
     await emailService.sendTransactionEmail(
       req.user.email,
       req.user.name,
-      amount,
+      parsedAmount,
       toAccount,
     );
   } catch (err) {
@@ -156,6 +161,7 @@ async function createTransaction(req, res) {
 
 async function createInitialFundsTransaction(req, res) {
   const { toAccount, amount, idempotencyKey } = req.body;
+  const parsedAmount = typeof amount === "string" ? Number(amount) : amount;
 
   if (!toAccount || !amount || !idempotencyKey) {
     return res.status(400).json({
@@ -163,7 +169,11 @@ async function createInitialFundsTransaction(req, res) {
     });
   }
 
-  if (typeof amount !== "number" || amount <= 0) {
+  if (
+    typeof parsedAmount !== "number" ||
+    Number.isNaN(parsedAmount) ||
+    parsedAmount <= 0
+  ) {
     return res.status(400).json({
       message: "amount must be a positive number",
     });
@@ -200,9 +210,9 @@ async function createInitialFundsTransaction(req, res) {
 
   const balance = await fromUserAccount.getBalance();
 
-  if (balance < amount) {
+  if (balance < parsedAmount) {
     return res.status(400).json({
-      message: `Insufficient balance. Current balance is ${balance}. Request amount is ${amount}`,
+      message: `Insufficient balance. Current balance is ${balance}. Request amount is ${parsedAmount}`,
     });
   }
 
@@ -214,7 +224,7 @@ async function createInitialFundsTransaction(req, res) {
       {
         fromAccount: fromUserAccount._id,
         toAccount,
-        amount,
+        amount: parsedAmount,
         idempotencyKey,
         status: "PENDING",
       },
@@ -224,7 +234,7 @@ async function createInitialFundsTransaction(req, res) {
     await ledgerModel.create(
       {
         account: fromUserAccount._id,
-        amount,
+        amount: parsedAmount,
         transaction: transaction._id,
         type: "DEBIT",
       },
@@ -234,7 +244,7 @@ async function createInitialFundsTransaction(req, res) {
     await ledgerModel.create(
       {
         account: toAccount,
-        amount,
+        amount: parsedAmount,
         transaction: transaction._id,
         type: "CREDIT",
       },

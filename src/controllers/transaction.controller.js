@@ -154,4 +154,111 @@ async function createTransaction(req, res) {
   });
 }
 
-module.exports = { createTransaction };
+async function createInitialFundsTransaction(req, res) {
+  const { toAccount, amount, idempotencyKey } = req.body;
+
+  if (!toAccount || !amount || !idempotencyKey) {
+    return res.status(400).json({
+      message: "toAccount, amount and idempotencyKey is required",
+    });
+  }
+
+  if (typeof amount !== "number" || amount <= 0) {
+    return res.status(400).json({
+      message: "amount must be a positive number",
+    });
+  }
+
+  const toUserAccount = await accountModel.findOne({
+    _id: toAccount,
+  });
+
+  if (!toUserAccount) {
+    return res.status(400).json({
+      message: "Invalid toAccount",
+    });
+  }
+
+  const fromUserAccount = await accountModel.findOne({
+    user: req.user._id,
+  });
+
+  if (!fromUserAccount) {
+    return res.status(400).json({
+      message: "System user account not found",
+    });
+  }
+
+  if (
+    fromUserAccount.status !== "ACTIVE" ||
+    toUserAccount.status !== "ACTIVE"
+  ) {
+    return res.status(400).json({
+      message: "Both accounts must be active to process the transaction",
+    });
+  }
+
+  const balance = await fromUserAccount.getBalance();
+
+  if (balance < amount) {
+    return res.status(400).json({
+      message: `Insufficient balance. Current balance is ${balance}. Request amount is ${amount}`,
+    });
+  }
+
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const transaction = await transactionModel.create(
+      {
+        fromAccount: fromUserAccount._id,
+        toAccount,
+        amount,
+        idempotencyKey,
+        status: "PENDING",
+      },
+      { session },
+    );
+
+    await ledgerModel.create(
+      {
+        account: fromUserAccount._id,
+        amount,
+        transaction: transaction._id,
+        type: "DEBIT",
+      },
+      { session },
+    );
+
+    await ledgerModel.create(
+      {
+        account: toAccount,
+        amount,
+        transaction: transaction._id,
+        type: "CREDIT",
+      },
+      { session },
+    );
+
+    transaction.status = "COMPLETED";
+    await transaction.save({ session });
+
+    await session.commitTransaction();
+    session.endSession();
+
+    return res.status(201).json({
+      message: "Initial funds transaction completed successfully",
+      transaction,
+    });
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+
+    return res.status(500).json({
+      message: "Failed to process initial funds transaction",
+      error: error.message,
+    });
+  }
+}
+module.exports = { createTransaction, createInitialFundsTransaction };

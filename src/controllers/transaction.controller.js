@@ -13,6 +13,18 @@ async function createTransaction(req, res) {
       message: "fromAccount, toAccount, amount and idempotencyKey is required",
     });
   }
+
+  if (fromAccount === toAccount) {
+    return res
+      .status(400)
+      .json({ message: "fromAccount and toAccount cannot be the same" });
+  }
+  if (typeof amount !== "number" || amount <= 0) {
+    return res
+      .status(400)
+      .json({ message: "amount must be a positive number" });
+  }
+
   const fromUserAccount = await accountModel.findOne({
     _id: fromAccount,
   });
@@ -45,13 +57,13 @@ async function createTransaction(req, res) {
     }
 
     if (isTransactionAlreadyExists.status === "FAILED") {
-      return res.status(500).json({
+      return res.status(409).json({
         message: "Transaction processing failed, please retry",
       });
     }
 
     if (isTransactionAlreadyExists.status === "REVERSED") {
-      return res.status(500).json({
+      return res.status(409).json({
         message: "Transaction was reversed, please retry",
       });
     }
@@ -59,7 +71,10 @@ async function createTransaction(req, res) {
 
   // check accounts status
 
-  if (fromAccount.status !== "ACTIVE" || toUserAccount.status !== "ACTIVE") {
+  if (
+    fromUserAccount.status !== "ACTIVE" ||
+    toUserAccount.status !== "ACTIVE"
+  ) {
     return res.status(400).json({
       message:
         "Both fromAccount and toAccount must be active to process transcation",

@@ -50,4 +50,41 @@ async function sendRegisterationEmail(userEmail, name) {
   await sendEmail(userEmail, subject, text, html);
 }
 
-module.exports = { sendRegisterationEmail };
+async function sendTransactionEmail(userEmail, name, amount, toaccount) {
+  const subject = "Transaction Confirmation - Backend Ledger";
+  const text = `Hello ${name},\n\nYour transaction of $${amount} to account ${toaccount} was successful.\n\nThank you for using Backend Ledger!\n\nBest regards,\nThe Backend Ledger Team`;
+  const html = `
+    <p>Hello <strong>${name}</strong>,</p>
+    <p>Your transaction of <strong>$${amount}</strong> to account <strong>${toaccount}</strong> was successful.</p>
+    <p>Thank you for using <strong>Backend Ledger</strong>!</p>
+    <p>Best regards,<br>The Backend Ledger Team</p>
+  `;
+
+  await sendEmail(userEmail, subject, text, html);
+}
+
+async function sendTransactionFailureEmail(
+  userEmail,
+  name,
+  amount,
+  toaccount,
+  reason,
+) {
+  const subject = "Transaction Failed - Backend Ledger";
+  const text = `Hello ${name},\n\nWe were unable to process your transaction of $${amount} to account ${toaccount}.\nReason: ${reason}\n\nIf you have any questions, please contact our support team.\n\nBest regards,\nThe Backend Ledger Team`;
+  const html = `
+    <p>Hello <strong>${name}</strong>,</p>
+    <p>We were unable to process your transaction of <strong>$${amount}</strong> to account <strong>${toaccount}</strong>.</p>
+    <p><strong>Reason for failure:</strong> ${reason}</p>
+    <p>If you have any questions, please contact our support team.</p>
+    <p>Best regards,<br>The Backend Ledger Team</p>
+  `;
+
+  await sendEmail(userEmail, subject, text, html);
+}
+
+module.exports = {
+  sendRegisterationEmail,
+  sendTransactionEmail,
+  sendTransactionFailureEmail,
+};

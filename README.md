@@ -17,7 +17,7 @@ A ledger is a record-keeping system that tracks transactions or entries over tim
 
 - **Register**
   - Method: POST
-  - URL: `https://node-ledger-vk5d.onrender.comhttps://node-ledger-vk5d.onrender.com/api/auth/register`
+  - URL: `/api/auth/register`
   - Body:
     ```json
     {
@@ -29,7 +29,7 @@ A ledger is a record-keeping system that tracks transactions or entries over tim
 
 - **Login**
   - Method: POST
-  - URL: `https://node-ledger-vk5d.onrender.com/api/auth/login`
+  - URL: `/api/auth/login`
   - Body:
     ```json
     {
@@ -40,7 +40,7 @@ A ledger is a record-keeping system that tracks transactions or entries over tim
 
 - **Logout**
   - Method: POST
-  - URL: `https://node-ledger-vk5d.onrender.com/api/auth/logout`
+  - URL: `/api/auth/logout`
 
 ---
 
@@ -48,15 +48,24 @@ A ledger is a record-keeping system that tracks transactions or entries over tim
 
 - **Create Account**
   - Method: POST
-  - URL: `https://node-ledger-vk5d.onrender.com/api/accounts`
+  - URL: `/api/accounts`
+  - Body:
+    ```json
+    {
+      "userId": "<userId>",
+      "name": "Checking",
+      "currency": "USD",
+      "balance": 1000.0
+    }
+    ```
 
 - **Get All Accounts**
   - Method: GET
-  - URL: `https://node-ledger-vk5d.onrender.com/api/accounts`
+  - URL: `/api/accounts`
 
 - **Get Balance**
   - Method: GET
-  - URL: `https://node-ledger-vk5d.onrender.com/api/accounts/:accountId`
+  - URL: `/api/accounts/balance/:accountId`
 
 ---
 
@@ -64,16 +73,43 @@ A ledger is a record-keeping system that tracks transactions or entries over tim
 
 - **Create Transaction**
   - Method: POST
-  - URL: `https://node-ledger-vk5d.onrender.com/api/transaction`
+  - URL: `/api/transaction`
   - Body:
     ```json
     {
-    "fromAccount":"<from account id>",
-    "toAccount":"<to account id>",
-    "amount":<amount>,
-    "idempotencyKey":"<idempotencyKey>" // unique key
+      "fromAccount": "<from account id>",
+      "toAccount": "<to account id>",
+      "amount": 100.0,
+      "idempotencyKey": "<unique-key>"
     }
     ```
+
+- **Create Initial Funds (SYSTEM user only)**
+  - Method: POST
+  - URL: `/api/transaction/system/initial-funds`
+  - Headers:
+    - `Authorization: Bearer <system-user-token>`
+  - Body:
+    ```json
+    {
+      "toAccount": "<account id>",
+      "amount": 5000.0,
+      "idempotencyKey": "<unique-key>"
+    }
+    ```
+  - Notes:
+    - This route is protected by `authSystemUserMiddleware`.
+    - The authenticated user must have `systemUser: true`.
+    - The transaction uses the system user's own account as the source account.
+
+---
+
+## System user / Initial funds
+
+- A SYSTEM user is a special user with the `systemUser` flag enabled in the user model.
+- Only this user can access `/api/transaction/system/initial-funds`.
+- If your app does not expose a public route to create SYSTEM users, create or seed the user directly in the database with `systemUser: true`.
+- Then login as that SYSTEM user, copy the returned JWT token, and use it in the `Authorization` header to fund accounts.
 
 ---
 

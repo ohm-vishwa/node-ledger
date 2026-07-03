@@ -12,7 +12,7 @@ const transactionRoutes = Router();
 
 transactionRoutes.post("/", authMiddleware, createTransaction);
 transactionRoutes.post(
-  "/system/inital-funds",
+  "/system/initial-funds",
   authSystemUserMiddleware,
   createInitialFundsTransaction,
 );
